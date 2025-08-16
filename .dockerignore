@@ -1,0 +1,31 @@
+# Node dependencies (will be installed inside container)
+node_modules
+
+# Build output (built fresh in container)
+dist
+
+# Local env files (you’ll pass env vars in at runtime instead)
+.env
+.env.*
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor/project files
+.vscode
+.idea
+
+# Local data (Mongo volume mounts, etc.)
+data
+
+# Git stuff
+.git
+.gitignore

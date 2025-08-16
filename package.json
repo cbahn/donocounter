@@ -1,0 +1,20 @@
+{
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "seed": "tsx scripts/seed.ts",
+    "init-indexes": "tsx src/db/indexes.ts"
+  },
+  "dependencies": {
+    "mongodb": "^6.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "dotenv": "^17.2.1",
+    "tsx": "^4.15.7",
+    "typescript": "^5.5.4"
+  }
+}

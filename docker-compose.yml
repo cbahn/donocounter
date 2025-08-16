@@ -1,0 +1,21 @@
+version: "3.9"
+
+networks:
+  mynet:
+    external: true  # your Mongo container is already on this network
+
+services:
+  app:
+    build: .
+    image: donocounter:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3000:3000"
+    networks:
+      - mynet
+    healthcheck:
+      test: ["CMD", "node", "dist/healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
