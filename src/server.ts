@@ -3,6 +3,7 @@ import http from "node:http";
 import { CONFIG } from "./config.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { listCards } from "./db/repositories/cards.js";
+import { donationsWebhook } from './routes/donations.webhook.js';
 
 async function start() {
   await ensureIndexes();
@@ -25,6 +26,11 @@ async function start() {
       const items = await listCards({ limit: 50 });
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ items }));
+      return;
+    }
+
+    if (req.url?.startsWith("/donation-webhook/" + CONFIG.donationWebhookKey)) {
+      await donationsWebhook(req, res);
       return;
     }
 
