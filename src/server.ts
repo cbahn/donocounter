@@ -1,49 +1,58 @@
 import 'dotenv/config';
+import express, { Request, Response, NextFunction } from 'express';
 import http from "node:http";
 import { CONFIG } from "./config.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { listCards } from "./db/repositories/cards.js";
 import { donationsWebhook } from './routes/donations.webhook.js';
 
-async function start() {
+const app = express();
+
+app.disable('x-powered-by');
+app.use(express.json({ limit: '1mb' }));
+
+app.get('/healthz', async(_req,res) => {
+  try {
+    await listCards({limit:1});
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ ok: false });
+  }
+});
+
+// Cards: returns latest 50 (no-store to keep the list fresh)
+app.get('/cards', async (_req, res, next) => {
+  try {
+    const items = await listCards({ limit: 50 });
+    res.set('cache-control', 'no-store').json({ items });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Webhook for donations
+app.post(`/donation-webhook/${CONFIG.donationWebhookKey}`, donationsWebhook);
+
+// 404s
+app.use((req, res) => {
+  res.status(404).end();
+});
+
+// Centralized error handler (so async errors come here)
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error(err);
+  res.status(500).json({ error: 'Internal Server Error' });
+});
+
+export async function start() {
   await ensureIndexes();
-
-  const server = http.createServer(async (req, res) => {
-    if (req.url?.startsWith("/healthz")) {
-      // lightweight check: query count
-      try {
-        await listCards({ limit: 1 });
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ ok: true }));
-      } catch (e) {
-        res.writeHead(500, { "content-type": "application/json" });
-        res.end(JSON.stringify({ ok: false }));
-      }
-      return;
-    }
-
-    if (req.url?.startsWith("/cards") && req.method === "GET") {
-      const items = await listCards({ limit: 50 });
-      res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
-      res.end(JSON.stringify({ items }));
-      return;
-    }
-
-    if (req.url?.startsWith("/donation-webhook/" + CONFIG.donationWebhookKey)) {
-      await donationsWebhook(req, res);
-      return;
-    }
-
-    res.writeHead(404);
-    res.end();
-  });
-
-  server.listen(CONFIG.port, () => {
+  app.listen(CONFIG.port, () => {
     console.log(`App listening on :${CONFIG.port}`);
   });
 }
 
+// Start the server
 start().catch((err) => {
-  console.error("Fatal on startup", err);
+  console.error('Fatal on startup', err);
   process.exit(1);
 });
