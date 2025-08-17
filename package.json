@@ -8,6 +8,7 @@
     "init-indexes": "tsx src/db/indexes.ts"
   },
   "dependencies": {
+    "better-sse": "^0.15.1",
     "express": "^5.1.0",
     "mongodb": "^6.18.0",
     "zod": "^3.23.8"

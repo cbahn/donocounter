@@ -1,6 +1,7 @@
 import { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
 import { upsertDonation } from "../db/repositories/donations.js";
+import { broadcast } from "../SSEHub.js";
 
 export async function readJsonBody<T = unknown>(
   req: IncomingMessage,
@@ -90,6 +91,8 @@ export async function donationsWebhook(req: IncomingMessage, res: ServerResponse
       rawPayload: raw,
       receivedAt: new Date()
     } as any);
+
+    broadcast({kind: "donation-created"});
 
     res.writeHead(200, { "content-type": "application/json" });
     res.end(JSON.stringify({ ok: true}));

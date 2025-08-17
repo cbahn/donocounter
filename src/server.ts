@@ -5,6 +5,7 @@ import { CONFIG } from "./config.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { listCards } from "./db/repositories/cards.js";
 import { donationsWebhook } from './routes/donations.webhook.js';
+import { donationsStream, startHeartbeat } from './SSEHub.js';
 
 const app = express();
 
@@ -30,8 +31,12 @@ app.get('/cards', async (_req, res, next) => {
   }
 });
 
+app.get('/donations/stream', donationsStream);
+
 // Webhook for donations
 app.post(`/donation-webhook/${CONFIG.donationWebhookKey}`, donationsWebhook);
+
+
 
 // 404s
 app.use((req, res) => {
@@ -46,6 +51,10 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 export async function start() {
   await ensureIndexes();
+
+  // Send hb to all SSE streams every 30 seconds
+  startHeartbeat(30_000);
+
   app.listen(CONFIG.port, () => {
     console.log(`App listening on :${CONFIG.port}`);
   });
