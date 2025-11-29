@@ -6,11 +6,23 @@ import { ensureIndexes } from "./db/indexes.js";
 import { listCards } from "./db/repositories/cards.js";
 import { donationsWebhook } from './routes/donations.webhook.js';
 import { donationsStream, startHeartbeat } from './SSEHub.js';
+import { fileURLToPath } from 'node:url';
+import path from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const publicDir = path.join(__dirname, "..", "src/public");
 
 const app = express();
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
+
+// Serve everything under /public at the web root
+app.use(express.static(publicDir, {
+  etag: true,
+  maxAge: "1h" // static assets can be cached
+}));
 
 app.get('/healthz', async(_req,res) => {
   try {
@@ -30,6 +42,7 @@ app.get('/cards', async (_req, res, next) => {
     next(err);
   }
 });
+
 
 app.get('/donations/stream', donationsStream);
 
