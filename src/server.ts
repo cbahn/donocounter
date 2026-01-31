@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import http from "node:http";
-import { CONFIG } from "./config.js";
+import "./bootstrapEnv"; // must come before CONFIG
+import { CONFIG } from "./config";
 import { ensureIndexes } from "./db/indexes.js";
 import { listCards } from "./db/repositories/cards.js";
 import { donationsWebhook } from './routes/donations.webhook.js';

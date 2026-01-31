@@ -1,8 +1,15 @@
-import 'dotenv/config';
+// src/config.ts
+function required(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env var: ${name}`);
+  return v;
+}
 
 export const CONFIG = {
-  mongoUrl: process.env.MONGO_URL ?? "mongodb://localhost:27017/cards_app",
-  port: parseInt(process.env.PORT ?? "3000", 10),
   nodeEnv: process.env.NODE_ENV ?? "development",
-  donationWebhookKey: process.env.DONATION_WEBHOOK_KEY ?? "012345"
-};
+  port: Number(process.env.PORT ?? "3000"),
+
+  // secrets / deployment-specific
+  mongoUrl: required("MONGO_URL"),
+  donationWebhookKey: required("DONATION_WEBHOOK_KEY"),
+} as const;
