@@ -2,8 +2,10 @@
 // enviornmental variables are loaded from the .env
 // file, but only while in dev mode
 
+import dotenv from "dotenv";
 
-if (process.env.NODE_ENV !== "production") {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  require("dotenv").config();
+export function bootstrapEnv() {
+  if (process.env.NODE_ENV !== "production") {
+    dotenv.config();
+  }
 }

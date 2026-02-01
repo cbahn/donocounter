@@ -1,8 +1,12 @@
-import 'dotenv/config';
 import express, { Request, Response, NextFunction } from 'express';
 import http from "node:http";
-import "./bootstrapEnv"; // must come before CONFIG
-import { CONFIG } from "./config";
+
+
+// must come before CONFIG
+import { bootstrapEnv } from "./bootstrapEnv.js"; // note: .js here is correct for TS->ESM
+bootstrapEnv();
+
+import { CONFIG } from "./config.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { listCards } from "./db/repositories/cards.js";
 import { donationsWebhook } from './routes/donations.webhook.js';
