@@ -44,6 +44,7 @@ export async function getTotalFromDatabase(): Promise<{
       {
         $match: {
           visible: "show",
+          valid: "valid",
           createdAt: { $gt: cutoffStartTime },
         },
       },

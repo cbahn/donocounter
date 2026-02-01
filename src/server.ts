@@ -19,6 +19,16 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 
+// Catch invalid JSON *before routes*
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  // body-parser uses "entity.parse.failed" for JSON parse errors
+  if (err?.type === "entity.parse.failed") {
+    res.status(400).json({ ok: false, error: "Invalid JSON" });
+    return;
+  }
+  next(err);
+});
+
 /*
 // Serve everything under /public at the web root
 app.use(express.static(publicDir, {
