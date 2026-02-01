@@ -4,6 +4,7 @@ import http from "node:http";
 
 import { CONFIG } from "./config.js";
 import { indexRoute } from './routes/index.js';
+import { getTotalRoute } from './routes/getTotal.js';
 import { donationsWebhook } from './routes/donations.webhook.js';
 import { donationsStream, startHeartbeat } from './SSEHub.js';
 import { fileURLToPath } from 'node:url';
@@ -18,14 +19,22 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 
+/*
 // Serve everything under /public at the web root
 app.use(express.static(publicDir, {
   etag: true,
   maxAge: "1h" // static assets can be cached
 }));
+*/
+
+app.use((req, _res, next) => {
+  console.log(req.method, req.url);
+  next();
+});
+
 
 app.get('/donation-webhook/', indexRoute);
-
+app.get('/donation-webhook/get-total', getTotalRoute);
 app.get('/donation-webhook/stream', donationsStream);
 
 // Webhook for donations
