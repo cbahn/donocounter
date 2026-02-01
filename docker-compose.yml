@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    image: juncothebird/donocounter:v2.0
+    image: juncothebird/donocounter:v2.1
     restart: unless-stopped
     ports:
       - "3000:3000"

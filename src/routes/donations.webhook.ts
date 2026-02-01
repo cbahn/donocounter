@@ -1,8 +1,8 @@
 // src/routes/donations.webhook.ts
 import type { Request, Response } from "express";
-import { DonationWebhookPayloadSchema } from "../validators/donationWebhookPayload";
-import { DonationEntry } from "../validators/donationEntry";
-import { insertDonation } from "../db/insertDonation";
+import { DonationWebhookPayloadSchema } from "../validators/donationWebhookPayload.js";
+import { DonationEntry } from "../validators/donationEntry.js";
+import { insertDonation } from "../db/insertDonation.js";
 
 export type ParsedVenmoSubject =
   | { ok: true; donorName: string; amountCents: number; }
