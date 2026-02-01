@@ -1,10 +1,10 @@
 import { upsertCard } from "../src/db/repositories/cards.js";
-import { upsertDonation } from "../src/db/repositories/donations.js";
+import { insertDonation } from "../src/db/insertDonation.js";
 
 async function main() {
   const now = new Date();
 
-  await upsertDonation({
+  await insertDonation({
     method: "venmo",
     venmoId: "37200160876",
     donorName: "Test Donation",

@@ -10,7 +10,6 @@ export async function getDb(): Promise<Db> {
   client = new MongoClient(CONFIG.mongoUrl, {
     serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
     connectTimeoutMS: 8000,
-    // sensible defaults; tune as you like
     maxPoolSize: 10,
     minPoolSize: 0,
     serverSelectionTimeoutMS: 5000

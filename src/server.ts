@@ -3,8 +3,6 @@ import http from "node:http";
 
 
 import { CONFIG } from "./config.js";
-import { ensureIndexes } from "./db/indexes.js";
-import { listCards } from "./db/repositories/cards.js";
 import { indexRoute } from './routes/index.js';
 import { donationsWebhook } from './routes/donations.webhook.js';
 import { donationsStream, startHeartbeat } from './SSEHub.js';
@@ -28,16 +26,6 @@ app.use(express.static(publicDir, {
 
 app.get('/donation-webhook/', indexRoute);
 
-app.get('/donation-webhook/healthz', async(_req,res) => {
-  try {
-    await listCards({limit:1});
-    res.json({ ok: true });
-  } catch {
-    res.status(500).json({ ok: false });
-  }
-});
-
-
 app.get('/donation-webhook/stream', donationsStream);
 
 // Webhook for donations
@@ -57,7 +45,6 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 export async function start() {
-  await ensureIndexes();
 
   // Send hb to all SSE streams every 30 seconds
   startHeartbeat(30_000);

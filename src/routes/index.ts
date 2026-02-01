@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { CONFIG } from "../config.js";
 
 export function indexRoute(_req: Request, res: Response) {
   const now = new Date();
@@ -34,6 +35,7 @@ export function indexRoute(_req: Request, res: Response) {
         <body>
           <div class="card">
             <h1 class="ok">Service is running</h1>
+            <p>Webhook thing: ${CONFIG.donationWebhookKey}</p>
             <p>Current server time:</p>
             <code>${now.toISOString()}</code>
           </div>

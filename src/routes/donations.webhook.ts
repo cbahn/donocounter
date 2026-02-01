@@ -1,103 +1,106 @@
-import { IncomingMessage, ServerResponse } from "node:http";
-import { z } from "zod";
-import { upsertDonation } from "../db/repositories/donations.js";
-import { broadcast } from "../SSEHub.js";
+// src/routes/donations.webhook.ts
+import type { Request, Response } from "express";
+import { DonationWebhookPayloadSchema } from "../validators/donationWebhookPayload";
+import { DonationEntry } from "../validators/donationEntry";
+import { insertDonation } from "../db/insertDonation";
 
-export async function readJsonBody<T = unknown>(
-  req: IncomingMessage,
-  opts: { maxBytes?: number } = {}
-): Promise<T> {
-  const limit = opts.maxBytes ?? 128 * 1024;
-  let size = 0;
-  const chunks: Buffer[] = [];
+export type ParsedVenmoSubject =
+  | { ok: true; donorName: string; amountCents: number; }
+  | { ok: false; error: string;  };
 
-  await new Promise<void>((resolve, reject) => {
-    req.on("data", (c: Buffer) => {
-      size += c.length;
-      if (size > limit) {
-        reject(new Error("payload_too_large"));
-        req.destroy();
-        return;
-      }
-      chunks.push(c);
-    });
-    req.on("end", () => resolve());
-    req.on("error", reject);
-  });
 
-  const text = Buffer.concat(chunks).toString("utf8");
-  if (!text) return {} as T;
-  return JSON.parse(text) as T;
+function parseVenmoSubject(subject: string): ParsedVenmoSubject {
+  const match = subject.match(
+    /^(.+?) paid you \$([0-9]+)(?:\.([0-9]{2}))?$/
+  );
+
+  if (!match) {
+    return {
+      ok: false,
+      error: `Unrecognized Venmo subject format: "${subject}"`,
+    }
+  }
+
+  const donorName = match[1].trim();
+  const dollarPart = Number(match[2]);
+  const centsPart = Number(match[3]);
+
+  if (Number.isNaN(dollarPart)) {
+    return {
+      ok: false,
+      error: `Invalid dollar in subject: "${subject}"`,
+    }
+  }
+
+  if( Number.isNaN(centsPart)) {
+    return {
+      ok: false,
+      error: `Invalid cents in subject: "${subject}"`,
+    }
+  }
+
+  if( 0 > centsPart || centsPart > 99 ) {
+    return {
+      ok: false,
+      error: `Cents value out of bounds: "${subject}"`,
+    }
+  }
+
+  const amountCents = dollarPart * 100 + centsPart;
+  return { ok: true, donorName, amountCents };
 }
 
-// If you later accept other shapes, add a union; for now expect { summary: string }
-const Payload = z.object({
-  summary: z.string().min(1)
-});
+export async function donationsWebhook(req: Request, res: Response) {
+  const now = new Date();
 
-export type ParsedVenmo = {
-  donorName: string | null;
-  amountCents: number | null;
-  transactionId: string | null;
-};
+  // 1. Parse and validate the input
+  const parseResult = DonationWebhookPayloadSchema.safeParse(req.body);
 
-export function parseVenmoSummary(summary: string): ParsedVenmo {
-  // Example:
-  // "Haley Webb paid you$8000 ... Transaction ID4384800191217671024 ..."
+  if (!parseResult.success) {
+    // Parse failure
+    console.warn("Invalid donation webhook payload", parseResult.error.flatten());
 
-  const nameMatch = summary.match(/^(.+?)\s+paid you/i);
-  const donorName = nameMatch?.[1]?.trim() ?? null;
-
-  // capture digits after "paid you$"
-  const amountDigits = summary.match(/paid you\$(\d+)/i)?.[1] ?? null;
-  const amountCents =
-    amountDigits != null ? parseInt(amountDigits, 10) : null; // interpret last 2 as cents
-
-  const transactionId = summary.match(/Transaction ID(\d+)/i)?.[1] ?? null;
-
-  return { donorName, amountCents, transactionId };
-}
-
-export async function donationsWebhook(req: IncomingMessage, res: ServerResponse) {
-  if (req.method !== "POST") {
-    res.writeHead(405, { allow: "POST" });
-    res.end();
+    res.status(200).json({ ok: false, error: "Invalid payload" });
     return;
   }
 
-  try {
-    const raw = await readJsonBody(req, { maxBytes: 256 * 1024 });
-    const { summary } = Payload.parse(raw);
+  // payload is valid and ready to use
+  const payload = parseResult.data;
 
-    const { donorName, amountCents, transactionId } = parseVenmoSummary(summary);
+  // Extract info from the subject line
+  const parsed = parseVenmoSubject(payload.subject);
 
-    if (!transactionId || amountCents == null) {
-      res.writeHead(400, { "content-type": "application/json" });
-      res.end(JSON.stringify({
-        ok: false,
-        error: "unparseable_summary",
-        detail: { hasTxnId: !!transactionId, hasAmount: amountCents != null }
-      }));
-      return;
-    }
-
-    const saved = await upsertDonation({
-      method: "venmo",
-      venmoId: transactionId,
-      donorName: donorName ?? undefined,
-      amountCents,                // e.g. "8000" -> $80.00
-      donatedAt: new Date(),      // if you later get the true time, replace this
-      status: "received",
-      rawPayload: raw,
-      receivedAt: new Date()
-    } as any);
-
-    broadcast({kind: "donation-created"});
-
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true}));
-  } catch (err: any) {
-    res.writeHead(400, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: false, error: "bad_request", detail: String(err) }));
+  if( ! parsed.ok ){
+    console.log(parsed.error);
+    res.status(200).json({ ok: false, err:"subject parse failure" });
+    return;
   }
+
+  // 2. Create new DonationEntry
+
+  const donation: DonationEntry = {
+    method: "venmo",
+    amountCents: parsed.amountCents,
+    donorName: parsed.donorName,
+    createdAt: now,
+    lastModifiedAt: now,
+    rawMessage: payload,
+    visible: "show",
+  };
+
+
+  // 3. Insert into database
+  try {
+    const result = await insertDonation(donation);
+
+  } catch (err) {
+    console.error("Failed to insert donation", err);
+    res.status(200).json({ ok: false, error:"failed to insert donation" });
+  }
+
+  console.log("Donation inserted!");
+
+  // Acknowledge receipt
+  // For webhooks, you usually want a fast, boring response
+  res.status(200).json({ ok: true });
 }
