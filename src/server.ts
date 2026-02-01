@@ -2,13 +2,10 @@ import express, { Request, Response, NextFunction } from 'express';
 import http from "node:http";
 
 
-// must come before CONFIG
-import { bootstrapEnv } from "./bootstrapEnv.js"; // note: .js here is correct for TS->ESM
-bootstrapEnv();
-
 import { CONFIG } from "./config.js";
 import { ensureIndexes } from "./db/indexes.js";
 import { listCards } from "./db/repositories/cards.js";
+import { indexRoute } from './routes/index.js';
 import { donationsWebhook } from './routes/donations.webhook.js';
 import { donationsStream, startHeartbeat } from './SSEHub.js';
 import { fileURLToPath } from 'node:url';
@@ -29,7 +26,9 @@ app.use(express.static(publicDir, {
   maxAge: "1h" // static assets can be cached
 }));
 
-app.get('/healthz', async(_req,res) => {
+app.get('/donation-webhook/', indexRoute);
+
+app.get('/donation-webhook/healthz', async(_req,res) => {
   try {
     await listCards({limit:1});
     res.json({ ok: true });
@@ -38,18 +37,8 @@ app.get('/healthz', async(_req,res) => {
   }
 });
 
-// Cards: returns latest 50 (no-store to keep the list fresh)
-app.get('/cards', async (_req, res, next) => {
-  try {
-    const items = await listCards({ limit: 50 });
-    res.set('cache-control', 'no-store').json({ items });
-  } catch (err) {
-    next(err);
-  }
-});
 
-
-app.get('/donations/stream', donationsStream);
+app.get('/donation-webhook/stream', donationsStream);
 
 // Webhook for donations
 app.post(`/donation-webhook/${CONFIG.donationWebhookKey}`, donationsWebhook);
